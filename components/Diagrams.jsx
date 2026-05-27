@@ -14,14 +14,14 @@ export const SkillsDiagram = () => {
   const [showCertificate, setShowCertificate] = useState(false);
   
   const skills = [
-    { id: 'cpp', label: 'C++', icon: Code },
-    { id: 'python', label: 'Python', icon: Terminal, certificate: '/python-certificate.pdf' },
-    { id: 'react', label: 'React', icon: Globe },
-    { id: 'node', label: 'Node.js', icon: Layers },
-    { id: 'sql', label: 'SQL', icon: Database },
-    { id: 'git', label: 'Git', icon: Code },
-    { id: 'java', label: 'Java', icon: Cpu },
-    { id: 'design', label: 'System', icon: Layers },
+    { id: 'python',     label: 'Python',     icon: Terminal,  certificate: '/python-certificate.pdf' },
+    { id: 'javascript', label: 'JavaScript', icon: Code },
+    { id: 'react',      label: 'React/Vite', icon: Globe },
+    { id: 'fastapi',    label: 'FastAPI',    icon: Zap },
+    { id: 'mongodb',    label: 'MongoDB',    icon: Database },
+    { id: 'firebase',   label: 'Firebase',   icon: Layers },
+    { id: 'crewai',     label: 'CrewAI',     icon: Cpu },
+    { id: 'ml',         label: 'ML/AI',      icon: BarChart2 },
   ];
 
   const toggleSkill = (skill) => {
@@ -167,12 +167,12 @@ export const ProjectFlowDiagram = () => {
 
 // --- STATS DIAGRAM (Was Performance Metric) ---
 export const StatsDiagram = () => {
-    const [category, setCategory] = useState('Code');
+    const [category, setCategory] = useState('Full Stack');
     
     const data = {
-        'Code': { label: 'Problem Solving', val: 90, sub: 'Efficiency' },
-        'Design': { label: 'System Design', val: 75, sub: 'Scalability' },
-        'Tools': { label: 'DevOps & Git', val: 85, sub: 'Workflow' } 
+        'Full Stack': { label: 'Production Apps Shipped', val: 88, sub: 'React + FastAPI' },
+        'AI/ML':      { label: 'AI/Agent Engineering',    val: 82, sub: 'CrewAI + LLMs'  },
+        'DevOps':     { label: 'CI/CD & Deployment',       val: 78, sub: 'Vercel + Render' }
     };
 
     const currentData = data[category];
@@ -182,10 +182,10 @@ export const StatsDiagram = () => {
             <div className="flex-1 min-w-[240px]">
                 <h3 className="font-serif text-xl mb-2 text-nobel-gold">Proficiency Metrics</h3>
                 <p className="text-stone-400 text-sm mb-4 leading-relaxed">
-                    A self-assessment of my current comfort levels and expertise across different engineering disciplines.
+                    A self-assessment of production-readiness across my primary engineering disciplines — built from shipping real client projects, a peer-reviewed paper, and ongoing event-driven development.
                 </p>
                 <div className="flex gap-2 mt-6">
-                    {['Code', 'Design', 'Tools'].map((d) => (
+                    {['Full Stack', 'AI/ML', 'DevOps'].map((d) => (
                         <button 
                             key={d}
                             onClick={() => setCategory(d)} 

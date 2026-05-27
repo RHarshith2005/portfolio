@@ -3,6 +3,7 @@ import { motion, useTransform, useMotionValue, useSpring } from 'framer-motion';
 import { ArrowRight, Star, Hexagon, Zap } from 'lucide-react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import Lenis from 'lenis';
 
 if (typeof window !== "undefined") {
     gsap.registerPlugin(ScrollTrigger);
@@ -10,20 +11,71 @@ if (typeof window !== "undefined") {
 
 const cn = (...classes) => classes.filter(Boolean).join(' ');
 
+const smoothEase = (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t));
+
+function usePremiumScroll() {
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+
+        const lenis = new Lenis({
+            duration: 1.35,
+            easing: smoothEase,
+            orientation: "vertical",
+            gestureOrientation: "vertical",
+            smoothWheel: true,
+            wheelMultiplier: 0.82,
+            touchMultiplier: 1.08,
+            syncTouch: true,
+            syncTouchLerp: 0.08,
+            touchInertiaMultiplier: 22
+        });
+
+        const updateScrollTrigger = () => ScrollTrigger.update();
+        const raf = (time) => lenis.raf(time * 1000);
+        const refresh = () => ScrollTrigger.refresh();
+
+        lenis.on("scroll", updateScrollTrigger);
+        gsap.ticker.add(raf);
+        gsap.ticker.lagSmoothing(0);
+        window.addEventListener("resize", refresh);
+        window.addEventListener("load", refresh);
+
+        const refreshTimer = window.setTimeout(refresh, 300);
+
+        return () => {
+            window.clearTimeout(refreshTimer);
+            window.removeEventListener("resize", refresh);
+            window.removeEventListener("load", refresh);
+            gsap.ticker.remove(raf);
+            if (typeof lenis.off === "function") {
+                lenis.off("scroll", updateScrollTrigger);
+            }
+            lenis.destroy();
+        };
+    }, []);
+}
+
 export const BrutalReveal = ({ text, className = "", delay = 0 }) => {
     const elRef = useRef(null);
     useEffect(() => {
         const el = elRef.current;
         if (!el) return;
-        const words = el.querySelectorAll('.brutal-word');
-        gsap.fromTo(words,
-            { opacity: 0, y: 50, rotateX: -90, transformOrigin: "0% 50% -50%" },
-            {
-                opacity: 1, y: 0, rotateX: 0,
-                duration: 0.9, stagger: 0.05, delay, ease: "power4.out",
-                scrollTrigger: { trigger: el, start: "top 90%" }
-            }
-        );
+        const ctx = gsap.context(() => {
+            const words = el.querySelectorAll('.brutal-word');
+            gsap.fromTo(words,
+                { opacity: 0, y: 50, rotateX: -90, transformOrigin: "0% 50% -50%", willChange: "transform, opacity" },
+                {
+                    opacity: 1, y: 0, rotateX: 0,
+                    duration: 1,
+                    stagger: 0.045,
+                    delay,
+                    ease: "power4.out",
+                    clearProps: "willChange",
+                    scrollTrigger: { trigger: el, start: "top 88%", once: true }
+                }
+            );
+        }, el);
+        return () => ctx.revert();
     }, [delay]);
     return (
         <div ref={elRef} className={cn("inline-block", className)} style={{ perspective: "1000px" }}>
@@ -54,8 +106,9 @@ export function BrutalButton({ children, className }) {
         <motion.button
             whileHover={{ scale: 1.02, x: -4, y: -4, boxShadow: '8px 8px 0px 0px rgba(0,0,0,1)' }}
             whileTap={{ scale: 0.98, x: 0, y: 0, boxShadow: '2px 2px 0px 0px rgba(0,0,0,1)' }}
+            transition={{ type: "spring", stiffness: 420, damping: 28 }}
             className={cn(
-                "relative flex items-center justify-center gap-2 border-4 border-black bg-[#ff4800] px-8 py-4 font-black uppercase tracking-widest text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all",
+                "relative flex items-center justify-center gap-2 border-4 border-black bg-[#ff4800] px-8 py-4 font-black uppercase tracking-widest text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-colors duration-300 will-change-transform",
                 className
             )}
         >
@@ -88,7 +141,7 @@ export function TiltCard({ photoSrc }) {
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
             style={{ transformStyle: "preserve-3d", rotateX, rotateY }}
-            className="relative aspect-square w-full max-w-md rounded-none border-4 border-black bg-white p-8 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] hover:shadow-[20px_20px_0px_0px_rgba(0,0,0,1)] transition-shadow duration-300 z-10"
+            className="relative aspect-square w-full max-w-[min(28rem,calc(100vw-4rem))] rounded-none border-4 border-black bg-white p-4 sm:p-8 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] hover:shadow-[20px_20px_0px_0px_rgba(0,0,0,1)] transition-shadow duration-500 ease-out z-10 will-change-transform"
         >
             <div style={{ transform: "translateZ(60px)" }} className="flex h-full flex-col justify-between border-4 border-black bg-[#ff4800] p-6 overflow-hidden">
                 {photoSrc ? (
@@ -97,7 +150,7 @@ export function TiltCard({ photoSrc }) {
                             <img
                                 src={photoSrc}
                                 alt="Harshith R"
-                                className="w-full h-full object-cover object-top grayscale hover:grayscale-0 transition-all duration-700"
+                                className="w-full h-full object-cover object-[center_18%] grayscale hover:grayscale-0 transition-all duration-700 ease-out"
                             />
                         </div>
                         <div>
@@ -146,10 +199,10 @@ export function Marquee({ text = "RAW POWER", bg = "bg-white", color = "text-bla
 
 function BrutalHero({ title, subtitle, photoSrc }) {
     return (
-        <section className="relative min-h-screen flex flex-col md:flex-row items-center justify-center p-6 md:p-12 overflow-hidden bg-[#E0E0E0] z-10 pt-24 border-b-8 border-black">
-            <div className="absolute top-0 w-full p-6 flex justify-between items-center border-b-4 border-black text-black z-50 bg-[#E0E0E0]">
+        <section className="relative min-h-[100svh] flex flex-col md:flex-row items-center justify-center gap-10 md:gap-0 p-6 md:p-12 overflow-x-clip bg-[#E0E0E0] z-10 pt-28 md:pt-24 border-b-8 border-black">
+            <div className="absolute top-0 w-full p-4 sm:p-6 flex justify-between items-center gap-4 border-b-4 border-black text-black z-50 bg-[#E0E0E0]">
                 <span className="font-black text-2xl uppercase tracking-tighter">HR.DEV</span>
-                <div className="flex gap-4">
+                <div className="flex flex-wrap justify-end gap-2 sm:gap-4">
                     <a href="https://github.com/RHarshith2005" target="_blank" rel="noopener noreferrer"
                         className="font-bold uppercase border-2 border-black px-4 py-1 hover:bg-black hover:text-white transition-colors cursor-pointer text-sm">
                         GITHUB
@@ -161,8 +214,8 @@ function BrutalHero({ title, subtitle, photoSrc }) {
                 </div>
             </div>
 
-            <div className="w-full md:w-1/2 flex flex-col justify-center space-y-8 z-20 mix-blend-exclusion text-white">
-                <h1 className="text-7xl md:text-[8rem] leading-[0.85]"><BrutalReveal text={title} /></h1>
+            <div className="w-full md:w-1/2 flex flex-col justify-center space-y-7 md:space-y-8 z-20 mix-blend-exclusion text-white">
+                <h1 className="text-6xl sm:text-7xl md:text-[8rem] leading-[0.85] break-words"><BrutalReveal text={title} /></h1>
                 <p className="font-mono text-xl md:text-2xl font-bold uppercase tracking-widest max-w-lg border-l-4 border-white pl-4">
                     {subtitle}
                 </p>
@@ -173,7 +226,7 @@ function BrutalHero({ title, subtitle, photoSrc }) {
                 </div>
             </div>
 
-            <div className="w-full md:w-1/2 flex justify-center mt-12 md:mt-0">
+            <div className="w-full md:w-1/2 flex justify-center mt-4 md:mt-0 md:-translate-y-6 lg:-translate-y-8">
                 <TiltCard photoSrc={photoSrc} />
             </div>
 
@@ -208,17 +261,17 @@ function BrutalStatement({ statement }) {
 
 function CinematicStack({ pillars }) {
     return (
-        <section className="relative bg-[#E0E0E0] py-32 px-6 md:px-12">
-            <h2 className="text-6xl md:text-9xl font-black uppercase mb-24 border-b-8 border-black pb-8 flex items-center justify-between">
+        <section className="relative bg-[#E0E0E0] py-24 md:py-32 px-6 md:px-12 overflow-x-clip">
+            <h2 className="text-5xl sm:text-6xl md:text-9xl font-black uppercase mb-20 md:mb-24 border-b-8 border-black pb-8 flex items-center justify-between gap-6">
                 <span>CORE STACK</span>
                 <span className="text-[#ff4800]">***</span>
             </h2>
-            <div className="w-full max-w-5xl mx-auto relative pb-[20vh]">
+            <div className="w-full max-w-5xl mx-auto relative pb-[22vh]">
                 {pillars.map((card, i) => (
                     <div
                         key={i}
                         className={cn(
-                            "sticky border-8 border-black p-8 md:p-16 flex flex-col justify-between shadow-[16px_16px_0px_0px_rgba(0,0,0,1)] min-h-[50vh] transition-transform duration-300",
+                            "sticky border-8 border-black p-8 md:p-16 flex flex-col justify-between gap-12 shadow-[16px_16px_0px_0px_rgba(0,0,0,1)] min-h-[52vh] transition-transform duration-500 ease-out will-change-transform",
                             card.bg, card.text
                         )}
                         style={{ top: `calc(15vh + ${i * 40}px)` }}
@@ -228,7 +281,7 @@ function CinematicStack({ pillars }) {
                             <Zap size={64} className="stroke-current" />
                         </div>
                         <div>
-                            <h3 className="text-7xl md:text-[10rem] font-black tracking-tighter uppercase leading-[0.8]">{card.title}</h3>
+                            <h3 className="text-6xl sm:text-7xl md:text-[10rem] font-black tracking-tighter uppercase leading-[0.8] break-words">{card.title}</h3>
                             <p className="font-mono text-xl md:text-3xl font-bold uppercase mt-8 border-l-8 pl-6 border-current">{card.desc}</p>
                         </div>
                     </div>
@@ -243,36 +296,41 @@ function PinnedFeatures({ features }) {
     const scrollContainerRef = useRef(null);
 
     useEffect(() => {
-        const pinScroll = gsap.timeline({
-            scrollTrigger: {
-                trigger: containerRef.current,
-                start: "top top",
-                end: "+=2000",
-                pin: true,
-                scrub: 1,
-            }
-        });
-        pinScroll.to(scrollContainerRef.current, { x: "-66.66%", ease: "none" });
+        const ctx = gsap.context(() => {
+            const pinScroll = gsap.timeline({
+                scrollTrigger: {
+                    trigger: containerRef.current,
+                    start: "top top",
+                    end: () => `+=${Math.max(1800, window.innerWidth * 2.15)}`,
+                    pin: true,
+                    scrub: 1.15,
+                    anticipatePin: 1,
+                    invalidateOnRefresh: true
+                }
+            });
+            pinScroll.to(scrollContainerRef.current, { x: "-66.66%", ease: "none" });
+        }, containerRef);
+        return () => ctx.revert();
     }, []);
 
     return (
-        <section ref={containerRef} className="h-screen bg-black overflow-hidden flex items-center border-y-8 border-white relative z-20">
-            <div className="absolute top-12 left-12 text-white font-mono z-50 uppercase text-2xl font-bold border-2 border-[#ff4800] px-4 py-2 bg-black shadow-[4px_4px_0px_0px_#ff4800]">
+        <section ref={containerRef} className="h-[100svh] bg-black overflow-hidden flex items-center border-y-8 border-white relative z-20">
+            <div className="absolute top-6 left-6 md:top-12 md:left-12 text-white font-mono z-50 uppercase text-lg md:text-2xl font-bold border-2 border-[#ff4800] px-4 py-2 bg-black shadow-[4px_4px_0px_0px_#ff4800]">
                 EXPERTISE.SYS
             </div>
-            <div ref={scrollContainerRef} className="flex h-[75vh] w-[300vw] px-12 gap-12 items-center">
+            <div ref={scrollContainerRef} className="flex h-[72svh] md:h-[75vh] w-[300vw] px-6 md:px-12 gap-8 md:gap-12 items-center will-change-transform">
                 {features.map((f, i) => (
                     <div key={i} className={cn(
-                        "w-[90vw] md:w-[60vw] h-full border-8 border-black p-12 flex flex-col justify-between shadow-[24px_24px_0px_0px_rgba(255,255,255,1)] flex-shrink-0 transition-all hover:scale-[1.02]",
+                        "w-[86vw] md:w-[60vw] h-full border-8 border-black p-6 md:p-12 flex flex-col justify-between gap-8 shadow-[18px_18px_0px_0px_rgba(255,255,255,1)] md:shadow-[24px_24px_0px_0px_rgba(255,255,255,1)] flex-shrink-0 transition-transform duration-500 ease-out hover:scale-[1.015] will-change-transform",
                         f.bg
                     )}>
-                        <div className="flex justify-between font-mono text-4xl font-bold uppercase border-b-8 border-black pb-8 text-black">
+                        <div className="flex justify-between font-mono text-2xl md:text-4xl font-bold uppercase border-b-8 border-black pb-6 md:pb-8 text-black">
                             <span>{f.num}</span>
                             <span>{i + 1}/3</span>
                         </div>
                         <div>
-                            <h3 className="text-7xl md:text-[9rem] font-black text-black uppercase tracking-tighter leading-[0.8] break-words">{f.title}</h3>
-                            <p className="font-mono text-xl font-bold uppercase text-black mt-6 border-l-8 border-black pl-4">{f.stack}</p>
+                            <h3 className="text-6xl sm:text-7xl md:text-[9rem] font-black text-black uppercase tracking-tighter leading-[0.8] break-words">{f.title}</h3>
+                            <p className="font-mono text-base md:text-xl font-bold uppercase text-black mt-6 border-l-8 border-black pl-4">{f.stack}</p>
                         </div>
                     </div>
                 ))}
@@ -284,25 +342,29 @@ function PinnedFeatures({ features }) {
 function ManifestoGrid({ rules }) {
     const gridRef = useRef(null);
     useEffect(() => {
-        const cells = gsap.utils.toArray('.rule-cell');
-        gsap.fromTo(cells,
-            { opacity: 0, scale: 0.8, filter: 'blur(10px)' },
-            {
-                opacity: 1, scale: 1, filter: 'blur(0px)', duration: 0.8, stagger: 0.1, ease: 'back.out(1.5)',
-                scrollTrigger: { trigger: gridRef.current, start: "top 75%" }
-            }
-        );
+        const ctx = gsap.context(() => {
+            const cells = gsap.utils.toArray('.rule-cell');
+            gsap.fromTo(cells,
+                { opacity: 0, scale: 0.86, filter: 'blur(10px)', willChange: "transform, opacity, filter" },
+                {
+                    opacity: 1, scale: 1, filter: 'blur(0px)', duration: 0.9, stagger: 0.08, ease: 'back.out(1.35)',
+                    clearProps: "willChange",
+                    scrollTrigger: { trigger: gridRef.current, start: "top 76%", once: true }
+                }
+            );
+        }, gridRef);
+        return () => ctx.revert();
     }, []);
 
     return (
-        <section className="bg-black py-32 px-6 md:px-12 border-b-8 border-white">
-            <h2 className="text-[#ff4800] text-5xl md:text-8xl font-black uppercase tracking-tighter mb-16 underline decoration-white decoration-8 underline-offset-8">
+        <section className="bg-black py-24 md:py-32 px-6 md:px-12 border-b-8 border-white overflow-x-clip">
+            <h2 className="text-[#ff4800] text-5xl md:text-8xl font-black uppercase tracking-tighter mb-16 underline decoration-white decoration-8 underline-offset-8 break-words">
                 THE MANIFESTO
             </h2>
             <div ref={gridRef} className="grid grid-cols-1 md:grid-cols-3 gap-0 border-8 border-white bg-white">
                 {rules.map((rule, i) => (
-                    <div key={i} className="rule-cell bg-black border-[4px] border-white p-12 flex items-center justify-center min-h-[300px] hover:bg-[#ff4800] transition-colors group">
-                        <p className="text-white text-3xl md:text-4xl font-black uppercase text-center leading-[1] group-hover:text-black">{rule}</p>
+                    <div key={i} className="rule-cell bg-black border-[4px] border-white p-8 md:p-12 flex items-center justify-center min-h-[240px] md:min-h-[300px] hover:bg-[#ff4800] transition-colors duration-300 group">
+                        <p className="text-white text-3xl md:text-4xl font-black uppercase text-center leading-[1] group-hover:text-black break-words">{rule}</p>
                     </div>
                 ))}
             </div>
@@ -313,30 +375,34 @@ function ManifestoGrid({ rules }) {
 function BrutalProjects({ projects }) {
     const ref = useRef(null);
     useEffect(() => {
-        const triggers = gsap.utils.toArray('.img-block');
-        triggers.forEach((el) => {
-            gsap.fromTo(el,
-                { scale: 0.85, filter: 'grayscale(100%) contrast(200%)' },
-                {
-                    scale: 1, filter: 'grayscale(0%) contrast(100%)', duration: 1.2, ease: 'expo.out',
-                    scrollTrigger: { trigger: el, start: "top 80%", scrub: 1 }
-                }
-            );
-        });
+        const ctx = gsap.context(() => {
+            const triggers = gsap.utils.toArray('.img-block');
+            triggers.forEach((el) => {
+                gsap.fromTo(el,
+                    { scale: 0.9, filter: 'grayscale(100%) contrast(180%)', willChange: "transform, filter" },
+                    {
+                        scale: 1, filter: 'grayscale(0%) contrast(100%)', duration: 1.2, ease: 'expo.out',
+                        clearProps: "willChange",
+                        scrollTrigger: { trigger: el, start: "top 82%", end: "top 45%", scrub: 0.8 }
+                    }
+                );
+            });
+        }, ref);
+        return () => ctx.revert();
     }, []);
 
     return (
-        <section className="bg-[#E0E0E0] py-32 px-6 md:px-12">
-            <h2 className="text-6xl md:text-[8rem] font-black uppercase text-center mb-24 border-y-8 border-black py-8 bg-white shadow-[16px_16px_0px_0px_rgba(0,0,0,1)] tracking-tighter">
+        <section className="bg-[#E0E0E0] py-24 md:py-32 px-6 md:px-12 overflow-x-clip">
+            <h2 className="text-6xl md:text-[8rem] font-black uppercase text-center mb-20 md:mb-24 border-y-8 border-black py-8 bg-white shadow-[16px_16px_0px_0px_rgba(0,0,0,1)] tracking-tighter break-words">
                 PROJECTS
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-16 md:gap-32 max-w-7xl mx-auto" ref={ref}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-16 md:gap-28 xl:gap-32 max-w-7xl mx-auto px-0 md:px-2" ref={ref}>
                 {projects.map((proj, i) => (
-                    <div key={i} className={cn("img-block relative border-8 border-black bg-white p-4 shadow-[24px_24px_0px_0px_rgba(0,0,0,1)]", i % 2 !== 0 ? "md:mt-48" : "")}>
+                    <div key={i} className={cn("img-block relative border-8 border-black bg-white p-4 shadow-[18px_18px_0px_0px_rgba(0,0,0,1)] md:shadow-[24px_24px_0px_0px_rgba(0,0,0,1)]", i % 2 !== 0 ? "md:mt-40 xl:mt-48" : "")}>
                         <div className="w-full aspect-[3/4] bg-black flex flex-col justify-between p-8 relative overflow-hidden group cursor-pointer"
                             onClick={() => proj.link && window.open(proj.link, '_blank')}
                         >
-                            <div className="absolute inset-0 bg-[#ff4800] translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out z-0" />
+                            <div className="absolute inset-0 bg-[#ff4800] translate-y-full group-hover:translate-y-0 transition-transform duration-700 ease-out z-0 will-change-transform" />
                             <div className="relative z-10">
                                 <p className="font-mono text-[#ff4800] group-hover:text-black text-sm font-bold uppercase tracking-widest mb-4 transition-colors">{proj.tech}</p>
                                 {proj.status === 'working' && (
@@ -346,7 +412,7 @@ function BrutalProjects({ projects }) {
                                 )}
                             </div>
                             <div className="relative z-10">
-                                <h3 className="text-4xl md:text-5xl font-black uppercase text-white group-hover:text-black leading-[0.9] tracking-tighter transition-colors">{proj.title}</h3>
+                                <h3 className="text-4xl md:text-5xl font-black uppercase text-white group-hover:text-black leading-[0.9] tracking-tighter transition-colors break-words">{proj.title}</h3>
                                 <p className="font-mono text-sm text-gray-400 group-hover:text-black mt-4 transition-colors leading-relaxed">{proj.desc}</p>
                             </div>
                         </div>
@@ -369,16 +435,16 @@ function BrutalProjects({ projects }) {
 
 function BrutalFooter({ links }) {
     return (
-        <footer className="bg-black text-white pt-32 overflow-hidden border-t-8 border-[#ff4800]">
-            <div className="px-6 md:px-12 flex flex-col lg:flex-row justify-between pb-32 border-b-8 border-white gap-16">
+        <footer className="bg-black text-white pt-24 md:pt-32 overflow-x-clip border-t-8 border-[#ff4800]">
+            <div className="px-6 md:px-12 flex flex-col lg:flex-row justify-between pb-24 md:pb-32 border-b-8 border-white gap-16">
                 <h2 className="text-[15vw] lg:text-[10vw] font-black uppercase leading-[0.8] tracking-tighter">
                     <span className="text-[#ff4800]">LET'S</span><br />BUILD.
                 </h2>
-                <div className="flex flex-col justify-end font-mono text-3xl md:text-5xl font-bold uppercase space-y-6">
+                <div className="flex flex-col justify-end font-mono text-3xl md:text-5xl font-bold uppercase space-y-6 max-w-full">
                     {links.map((link, i) => (
                         <a key={i} href={link.href} target={link.external ? "_blank" : undefined}
                             rel={link.external ? "noopener noreferrer" : undefined}
-                            className="flex items-center gap-4 hover:text-[#ff4800] hover:pl-8 transition-all group border-b-4 border-transparent hover:border-[#ff4800] pb-2">
+                            className="flex items-center gap-4 hover:text-[#ff4800] hover:pl-4 md:hover:pl-8 transition-all duration-300 group border-b-4 border-transparent hover:border-[#ff4800] pb-2 break-words">
                             {link.label} <ArrowRight className="hidden group-hover:block" size={40} />
                         </a>
                     ))}
@@ -392,6 +458,8 @@ function BrutalFooter({ links }) {
 export default function BrutalistPortfolio({
     photoSrc = "/profile-photo.jpg"
 } = {}) {
+    usePremiumScroll();
+
     const pillars = [
         {
             title: 'FULL STACK',
@@ -484,7 +552,7 @@ export default function BrutalistPortfolio({
     ];
 
     return (
-        <div className="relative bg-[#E0E0E0] min-h-screen text-black selection:bg-[#ff4800] selection:text-black font-sans">
+        <div className="relative bg-[#E0E0E0] min-h-screen max-w-full overflow-x-clip text-black selection:bg-[#ff4800] selection:text-black font-sans">
             <NoiseOverlay />
             <BrutalHero
                 title="HARSHITH R"
